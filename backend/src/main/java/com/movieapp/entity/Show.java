@@ -2,6 +2,7 @@ package com.movieapp.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -44,6 +45,11 @@ public class Show {
     @Column(name = "language", length = 40)
     private String language;
 
+    /** Soft-delete flag. Deleted shows are hidden from listings, but their bookings are preserved. */
+    @Column(name = "deleted", nullable = false)
+    @ColumnDefault("false")
+    private boolean deleted = false;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Movie getMovie() { return movie; }
@@ -64,4 +70,6 @@ public class Show {
     public void setDiscountPercent(Integer discountPercent) { this.discountPercent = discountPercent; }
     public String getLanguage() { return language; }
     public void setLanguage(String language) { this.language = language; }
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean deleted) { this.deleted = deleted; }
 }

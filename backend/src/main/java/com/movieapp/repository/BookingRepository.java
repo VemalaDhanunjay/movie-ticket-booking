@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
@@ -14,10 +15,19 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findAllByOrderByBookingDateDesc();
     List<Booking> findByShowId(Long showId);
 
-    long countByShowIdAndStatus(Long showId, BookingStatus status);
+    @Query("SELECT COUNT(b) FROM Booking b " +
+           "WHERE b.show.id = :showId AND b.status = :status " +
+           "AND b.show.showTime > :threshold")
+    long countActiveByShowId(@Param("showId") Long showId,
+                             @Param("status") BookingStatus status,
+                             @Param("threshold") LocalDateTime threshold);
 
-    @Query("SELECT COUNT(b) FROM Booking b WHERE b.show.movie.id = :movieId AND b.status = :status")
-    long countByMovieIdAndStatus(@Param("movieId") Long movieId, @Param("status") BookingStatus status);
+    @Query("SELECT COUNT(b) FROM Booking b " +
+           "WHERE b.show.movie.id = :movieId AND b.status = :status " +
+           "AND b.show.showTime > :threshold")
+    long countActiveByMovieId(@Param("movieId") Long movieId,
+                              @Param("status") BookingStatus status,
+                              @Param("threshold") LocalDateTime threshold);
 
     @Modifying
     @Query("DELETE FROM Booking b WHERE b.show.id = :showId")

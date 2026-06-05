@@ -272,17 +272,20 @@
           <p id="manageShows__p__deleteSubtitle" class="text-sm text-slate-500 mt-1">
             {{ deleteTarget()!.show.movie.title }} — {{ deleteTarget()!.show.showTime | date:'EEE, MMM d · h:mm a' }}
           </p>
+          <p id="manageShows__p__deleteArchiveNote" class="text-xs text-slate-400 mt-1">
+            The show will be archived (hidden from listings). Its bookings stay intact for history.
+          </p>
         </div>
       </div>
 
       <div id="manageShows__div__deleteImpact" class="mt-5 rounded-lg bg-slate-50 border border-slate-200 p-4 space-y-2 text-sm">
         <div id="manageShows__div__deleteImpactActive" class="flex justify-between">
-          <span id="manageShows__span__deleteImpactActiveLabel" class="text-slate-600">Active bookings</span>
+          <span id="manageShows__span__deleteImpactActiveLabel" class="text-slate-600">Active bookings (upcoming/in-progress)</span>
           <span id="manageShows__span__deleteImpactActiveValue" [ngClass]="deleteTarget()!.activeBookings > 0 ? 'text-rose-600' : 'text-slate-900'"
                 class="font-semibold">{{ deleteTarget()!.activeBookings }}</span>
         </div>
         <div id="manageShows__div__deleteImpactCancelled" class="flex justify-between">
-          <span id="manageShows__span__deleteImpactCancelledLabel" class="text-slate-600">Cancelled bookings</span>
+          <span id="manageShows__span__deleteImpactCancelledLabel" class="text-slate-600">Cancelled bookings (preserved)</span>
           <span id="manageShows__span__deleteImpactCancelledValue" class="font-semibold text-slate-900">{{ deleteTarget()!.cancelledBookings }}</span>
         </div>
       </div>
@@ -290,7 +293,7 @@
       @if (deleteTarget()!.activeBookings > 0) {
         <div id="manageShows__div__deleteBlocked" class="mt-4 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-md p-3 flex items-start gap-2">
           <app-icon id="manageShows__icon__deleteBlocked" name="alert-triangle" [size]="16" class="shrink-0 mt-0.5"></app-icon>
-          <span id="manageShows__span__deleteBlockedText">Can't delete — {{ deleteTarget()!.activeBookings }} confirmed booking(s) exist for this show.</span>
+          <span id="manageShows__span__deleteBlockedText">Can't delete — this show has {{ deleteTarget()!.activeBookings }} confirmed booking(s) and hasn't finished yet.</span>
         </div>
       }
 

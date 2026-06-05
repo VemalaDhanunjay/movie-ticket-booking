@@ -166,9 +166,12 @@ export class ManageShowsComponent implements OnInit {
     this.bookingService.getAll().subscribe({
       next: list => {
         const showBookings = list.filter(b => b.show?.id === s.id);
+        // Confirmed bookings only block deletion while the show hasn't ended yet
+        // (showTime + the movie's runtime). A finished show never blocks.
+        const stillActive = this.showNotEnded(s, Date.now());
         this.deleteTarget.set({
           show: s,
-          activeBookings: showBookings.filter(b => b.status === 'CONFIRMED').length,
+          activeBookings: stillActive ? showBookings.filter(b => b.status === 'CONFIRMED').length : 0,
           cancelledBookings: showBookings.filter(b => b.status === 'CANCELLED').length
         });
         this.deleteError.set(null);
@@ -208,6 +211,14 @@ export class ManageShowsComponent implements OnInit {
 
   isPast(s: Show): boolean {
     return new Date(s.showTime).getTime() <= Date.now();
+  }
+
+  /** A show keeps blocking deletion until showTime + the movie's runtime has elapsed. */
+  private showNotEnded(show: Show, nowMs: number): boolean {
+    const start = new Date(show.showTime).getTime();
+    const dur = show.movie?.durationMins;
+    const endMs = (dur && dur > 0) ? start + dur * 60_000 : start;
+    return endMs > nowMs;
   }
 
   private toDateInput(d: Date): string {

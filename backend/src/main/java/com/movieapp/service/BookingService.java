@@ -58,6 +58,10 @@ public class BookingService {
         Show show = showRepository.findById(req.getShowId())
                 .orElseThrow(() -> new IllegalArgumentException("Show not found"));
 
+        if (show.isDeleted() || (show.getMovie() != null && show.getMovie().isDeleted())) {
+            throw new IllegalStateException("This show is no longer available");
+        }
+
         if (show.getShowTime().isBefore(LocalDateTime.now())) {
             throw new IllegalStateException("This show has already started — booking is closed");
         }

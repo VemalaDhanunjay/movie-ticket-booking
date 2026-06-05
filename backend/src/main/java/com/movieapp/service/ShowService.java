@@ -43,7 +43,7 @@ public class ShowService {
     }
 
     public List<Show> findByMovie(Long movieId) {
-        return showRepository.findByMovieIdOrderByShowTimeAsc(movieId);
+        return showRepository.findByMovieIdAndDeletedFalseAndMovieDeletedFalseOrderByShowTimeAsc(movieId);
     }
 
     public List<Show> search(Long movieId, Long theaterId, String location, java.time.LocalDate date) {
@@ -56,7 +56,7 @@ public class ShowService {
     /** Used by admin "Manage Shows". Scoped to admin's theater. */
     public List<Show> findForAdmin(Long adminUserId) {
         Theater theater = requireAdminTheater(adminUserId);
-        return showRepository.findByTheaterIdOrderByShowTimeAsc(theater.getId());
+        return showRepository.findByTheaterIdAndDeletedFalseAndMovieDeletedFalseOrderByShowTimeAsc(theater.getId());
     }
 
     public Show create(ShowRequest req, Long adminUserId) {
@@ -70,6 +70,9 @@ public class ShowService {
         Theater theater = requireAdminTheater(adminUserId);
         Movie movie = movieRepository.findById(req.getMovieId())
                 .orElseThrow(() -> new IllegalArgumentException("Movie not found"));
+        if (movie.isDeleted()) {
+            throw new IllegalArgumentException("Cannot schedule a show on a deleted movie");
+        }
 
         String language = resolveShowLanguage(movie, req.getLanguage());
 
@@ -140,6 +143,9 @@ public class ShowService {
         Theater theater = requireAdminTheater(adminUserId);
         Movie movie = movieRepository.findById(req.getMovieId())
                 .orElseThrow(() -> new IllegalArgumentException("Movie not found"));
+        if (movie.isDeleted()) {
+            throw new IllegalArgumentException("Cannot schedule a show on a deleted movie");
+        }
 
         String language = resolveShowLanguage(movie, req.getLanguage());
 
@@ -175,14 +181,21 @@ public class ShowService {
             throw new ForbiddenException("You can only delete shows in your own theater");
         }
 
-        long active = bookingRepository.countByShowIdAndStatus(showId, BookingStatus.CONFIRMED);
+        LocalDateTime threshold = LocalDateTime.now();
+        Integer durationMins = show.getMovie() != null ? show.getMovie().getDurationMins() : null;
+        if (durationMins != null && durationMins > 0) {
+            threshold = threshold.minusMinutes(durationMins);
+        }
+        long active = bookingRepository.countActiveByShowId(
+                showId, BookingStatus.CONFIRMED, threshold);
         if (active > 0) {
             throw new IllegalStateException(
-                "Cannot delete: " + active + " active booking(s) exist for this show.");
+                "Cannot delete: " + active + " active booking(s) for this show (not finished yet).");
         }
 
-        bookingRepository.deleteByShowId(showId);
-        showRepository.delete(show);
+        // Soft-delete: hide the show. Its bookings are preserved for history and analytics.
+        show.setDeleted(true);
+        showRepository.save(show);
     }
 
     private Theater requireAdminTheater(Long adminUserId) {

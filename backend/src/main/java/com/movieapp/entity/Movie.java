@@ -1,6 +1,7 @@
 package com.movieapp.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 
@@ -35,6 +36,12 @@ public class Movie {
     @Column(name = "languages", length = 250)
     private String languages;
 
+    /** Soft-delete flag. Deleted movies are hidden from the catalog/listings, but their
+        rows (and dependent shows/bookings) are preserved for history and analytics. */
+    @Column(name = "deleted", nullable = false)
+    @ColumnDefault("false")
+    private boolean deleted = false;
+
     /** Populated on read; not persisted. */
     @Transient
     private Double averageRating;
@@ -58,6 +65,8 @@ public class Movie {
     public void setTrailerUrl(String trailerUrl) { this.trailerUrl = trailerUrl; }
     public String getLanguages() { return languages; }
     public void setLanguages(String languages) { this.languages = languages; }
+    public boolean isDeleted() { return deleted; }
+    public void setDeleted(boolean deleted) { this.deleted = deleted; }
     public Double getAverageRating() { return averageRating; }
     public void setAverageRating(Double averageRating) { this.averageRating = averageRating; }
     public Long getReviewCount() { return reviewCount; }

@@ -327,7 +327,7 @@
         <div id="manageMovies__div__deleteHeadText">
           <h3 id="manageMovies__h3__deleteTitle" class="text-lg font-bold text-slate-900">Delete "{{ deleteTarget()!.movie.title }}"?</h3>
           <p id="manageMovies__p__deleteSubtitle" class="text-sm text-slate-500 mt-1">
-            This action cannot be undone. Removing a movie also removes its scheduled shows.
+            The movie and its shows will be archived (hidden from the catalog). Past bookings and ticket history are preserved.
           </p>
         </div>
       </div>
@@ -342,12 +342,12 @@
           <span id="manageMovies__span__deleteImpactUpcomingValue" class="font-semibold text-slate-900">{{ deleteTarget()!.upcomingShows }}</span>
         </div>
         <div id="manageMovies__div__deleteImpactActive" class="flex justify-between">
-          <span id="manageMovies__span__deleteImpactActiveLabel" class="text-slate-600">Active bookings</span>
+          <span id="manageMovies__span__deleteImpactActiveLabel" class="text-slate-600">Active bookings (upcoming/in-progress)</span>
           <span id="manageMovies__span__deleteImpactActiveValue" [ngClass]="deleteTarget()!.activeBookings > 0 ? 'text-rose-600' : 'text-slate-900'"
                 class="font-semibold">{{ deleteTarget()!.activeBookings }}</span>
         </div>
         <div id="manageMovies__div__deleteImpactCancelled" class="flex justify-between">
-          <span id="manageMovies__span__deleteImpactCancelledLabel" class="text-slate-600">Cancelled bookings (kept for history)</span>
+          <span id="manageMovies__span__deleteImpactCancelledLabel" class="text-slate-600">Cancelled bookings (preserved)</span>
           <span id="manageMovies__span__deleteImpactCancelledValue" class="font-semibold text-slate-900">{{ deleteTarget()!.cancelledBookings }}</span>
         </div>
       </div>
@@ -356,14 +356,15 @@
         <div id="manageMovies__div__deleteBlocked" class="mt-4 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-md p-3 flex items-start gap-2">
           <app-icon id="manageMovies__icon__deleteBlocked" name="alert-triangle" [size]="16" class="shrink-0 mt-0.5"></app-icon>
           <span id="manageMovies__span__deleteBlockedText">
-            Can't delete this movie — it has {{ deleteTarget()!.activeBookings }} confirmed booking(s).
-            Users would lose their tickets. Wait until shows pass, or cancel those bookings first.
+            Can't delete this movie — {{ deleteTarget()!.activeBookings }} confirmed booking(s) are for
+            upcoming or in-progress shows. Users would lose their tickets — cancel those bookings or
+            wait until the shows finish.
           </span>
         </div>
       } @else {
         <p id="manageMovies__p__deleteWarning" class="mt-4 text-xs text-slate-500">
-          Deleting will also remove the {{ deleteTarget()!.totalShows }} scheduled show(s) and
-          {{ deleteTarget()!.cancelledBookings }} cancelled booking record(s).
+          Archiving hides the {{ deleteTarget()!.totalShows }} scheduled show(s). All booking records
+          (including {{ deleteTarget()!.cancelledBookings }} cancelled) stay intact for history and analytics.
         </p>
       }
 

@@ -46,8 +46,7 @@ public class AnalyticsService {
         long confirmed = bookings.stream().filter(b -> b.getStatus() == BookingStatus.CONFIRMED).count();
         long cancelled = total - confirmed;
         BigDecimal revenue = bookings.stream()
-                .filter(b -> b.getStatus() == BookingStatus.CONFIRMED)
-                .map(Booking::getTotalAmount)
+                .map(this::keptRevenue)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
         long seatsSold = bookings.stream()
@@ -91,7 +90,11 @@ public class AnalyticsService {
             counts[0]++;
             if (b.getStatus() == BookingStatus.CONFIRMED) {
                 counts[1]++;
-                revenueByDay.merge(d, b.getTotalAmount(), BigDecimal::add);
+            }
+            // Revenue = money kept: the confirmed total, or the retained cancellation fee.
+            BigDecimal kept = keptRevenue(b);
+            if (kept.signum() > 0) {
+                revenueByDay.merge(d, kept, BigDecimal::add);
             }
         }
 
@@ -113,10 +116,14 @@ public class AnalyticsService {
         Map<String, Long> seatsByTitle = new HashMap<>();
 
         for (Booking b : bookingRepository.findByTheaterId(theaterId)) {
-            if (b.getStatus() != BookingStatus.CONFIRMED) continue;
+            BigDecimal kept = keptRevenue(b);
+            if (kept.signum() <= 0) continue;   // fully refunded / nothing kept
             String title = b.getShow().getMovie().getTitle();
-            revByTitle.merge(title, b.getTotalAmount(), BigDecimal::add);
-            seatsByTitle.merge(title, b.getSeatsBooked().longValue(), Long::sum);
+            revByTitle.merge(title, kept, BigDecimal::add);
+            // Seats count only for bookings that stayed confirmed (cancelled seats were released).
+            if (b.getStatus() == BookingStatus.CONFIRMED) {
+                seatsByTitle.merge(title, b.getSeatsBooked().longValue(), Long::sum);
+            }
         }
 
         List<Map<String, Object>> out = new ArrayList<>();
@@ -151,6 +158,22 @@ public class AnalyticsService {
         }
         out.sort(Comparator.comparing(r -> (String) r.get("showTime")));
         return out;
+    }
+
+    /**
+     * Money the theater actually keeps for a booking:
+     *   - CONFIRMED: the full amount paid.
+     *   - CANCELLED: only the non-refunded portion (the cancellation fee). If the refund
+     *     amount is missing (legacy rows), assume nothing was kept rather than inventing revenue.
+     */
+    private BigDecimal keptRevenue(Booking b) {
+        BigDecimal total = b.getTotalAmount() != null ? b.getTotalAmount() : BigDecimal.ZERO;
+        if (b.getStatus() == BookingStatus.CONFIRMED) {
+            return total;
+        }
+        BigDecimal refund = b.getRefundAmount() != null ? b.getRefundAmount() : total;
+        BigDecimal kept = total.subtract(refund);
+        return kept.signum() > 0 ? kept : BigDecimal.ZERO;
     }
 
     private Long requireTheater(Long adminUserId) {

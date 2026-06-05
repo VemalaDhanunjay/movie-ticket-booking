@@ -10,6 +10,7 @@ import com.movieapp.util.LanguageMatcher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -35,17 +36,18 @@ public class MovieService {
         List<Movie> movies;
         String loc = (location == null || location.isBlank()) ? null : location.trim();
         if (theaterId != null) {
-            // Distinct movies that have at least one show in the given theater.
-            List<Long> movieIds = showRepository.findByTheaterIdOrderByShowTimeAsc(theaterId).stream()
+            // Distinct (non-deleted) movies that have at least one live show in the given theater.
+            List<Long> movieIds = showRepository
+                    .findByTheaterIdAndDeletedFalseAndMovieDeletedFalseOrderByShowTimeAsc(theaterId).stream()
                     .map(s -> s.getMovie().getId())
                     .distinct()
                     .toList();
-            movies = movieIds.isEmpty() ? List.of() : movieRepository.findAllById(movieIds);
+            movies = movieIds.isEmpty() ? List.of() : movieRepository.findByIdInAndDeletedFalse(movieIds);
         } else if (loc != null) {
             List<Long> movieIds = showRepository.findMovieIdsByLocation(loc);
-            movies = movieIds.isEmpty() ? List.of() : movieRepository.findAllById(movieIds);
+            movies = movieIds.isEmpty() ? List.of() : movieRepository.findByIdInAndDeletedFalse(movieIds);
         } else {
-            movies = movieRepository.findAll();
+            movies = movieRepository.findByDeletedFalse();
         }
 
         String lang = (language == null || language.isBlank()) ? null : language.trim();
@@ -113,21 +115,29 @@ public class MovieService {
         Movie movie = movieRepository.findById(movieId)
                 .orElseThrow(() -> new IllegalArgumentException("Movie not found"));
 
-        long activeBookings = bookingRepository.countByMovieIdAndStatus(movieId, BookingStatus.CONFIRMED);
+        LocalDateTime threshold = LocalDateTime.now();
+        if (movie.getDurationMins() != null && movie.getDurationMins() > 0) {
+            // A show still in progress should keep blocking deletion: any show that
+            // started within the last `durationMins` minutes hasn't ended yet.
+            threshold = threshold.minusMinutes(movie.getDurationMins());
+        }
+        long activeBookings = bookingRepository.countActiveByMovieId(
+                movieId, BookingStatus.CONFIRMED, threshold);
         if (activeBookings > 0) {
             throw new IllegalStateException(
-                "Cannot delete: " + activeBookings + " active booking(s) exist for this movie. " +
-                "Cancel them first or wait until shows pass.");
+                "Cannot delete: " + activeBookings + " active booking(s) for upcoming or in-progress shows. " +
+                "Cancel them or wait until those shows finish.");
         }
 
+        // Soft-delete: hide the movie and its shows. The bookings, shows, and movie rows are
+        // all preserved so the booking -> show -> movie history and analytics keep resolving.
         List<Show> shows = showRepository.findByMovieIdOrderByShowTimeAsc(movieId);
-        if (!shows.isEmpty()) {
-            List<Long> showIds = shows.stream().map(Show::getId).toList();
-            // Wipe any cancelled-booking history for these shows so the FK doesn't block deletion.
-            bookingRepository.deleteByShowIdIn(showIds);
-            showRepository.deleteAll(shows);
+        for (Show s : shows) {
+            s.setDeleted(true);
         }
+        showRepository.saveAll(shows);
 
-        movieRepository.delete(movie);
+        movie.setDeleted(true);
+        movieRepository.save(movie);
     }
 }

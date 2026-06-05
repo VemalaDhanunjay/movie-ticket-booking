@@ -162,7 +162,12 @@ export class ManageMoviesComponent implements OnInit {
     const now = Date.now();
     const upcoming = movieShows.filter(s => new Date(s.showTime).getTime() > now).length;
     const movieBookings = this.bookings().filter(b => b.show?.movie?.id === m.id);
-    const active = movieBookings.filter(b => b.status === 'CONFIRMED').length;
+    // Only confirmed bookings for shows that haven't ended yet block deletion.
+    // A show is "ended" once showTime + the movie's runtime has passed; if the
+    // duration is unknown we fall back to showTime alone.
+    const active = movieBookings.filter(b =>
+      b.status === 'CONFIRMED' && this.showNotEnded(b.show, now)
+    ).length;
     const cancelled = movieBookings.filter(b => b.status === 'CANCELLED').length;
 
     this.deleteTarget.set({
@@ -173,6 +178,14 @@ export class ManageMoviesComponent implements OnInit {
       cancelledBookings: cancelled
     });
     this.deleteError.set(null);
+  }
+
+  /** A show keeps blocking deletion until showTime + the movie's runtime has elapsed. */
+  private showNotEnded(show: Show, nowMs: number): boolean {
+    const start = new Date(show.showTime).getTime();
+    const dur = show.movie?.durationMins;
+    const endMs = (dur && dur > 0) ? start + dur * 60_000 : start;
+    return endMs > nowMs;
   }
 
   closeDelete() {
